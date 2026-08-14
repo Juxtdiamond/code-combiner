@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Code Combiner for AI</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --card-bg: #1e1e1e;
+      --card-hover: #262626;
+      --border-color: #333333;
+      --text-main: #ededed;
+      --text-muted: #a1a1aa;
+      --accent-color: #22c55e;
+      --accent-hover: #16a34a;
+      --danger-color: #ef4444;
+      --warning-color: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 20px;
+      gap: 15px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+
+    h1 { font-size: 1.4rem; font-weight: 600; color: var(--text-main); }
+
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .stats-bar span { color: var(--text-main); font-weight: 600; }
+
+    /* Warning Banner when over storage limit */
+    #storage-warning {
+      display: none;
+      background-color: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning-color);
+      color: var(--warning-color);
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      min-height: 0;
+    }
+
+    #drop-zone {
+      border: 2px dashed var(--border-color);
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 25px 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #drop-zone.hover { 
+      border-color: var(--text-muted);
+      background-color: var(--card-hover);
+    }
+    
+    #drop-zone p { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+    #drop-zone strong { color: var(--text-main); }
+
+    .file-list-container {
+      flex: 1;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .file-card {
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-info { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .file-name { font-weight: 500; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+    .file-stats { font-size: 0.75rem; color: var(--text-muted); }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0 5px;
+      transition: color 0.15s;
+    }
+    .remove-btn:hover { color: var(--danger-color); }
+
+    .main-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    button.primary-btn, button.secondary-btn {
+      padding: 10px 18px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.primary-btn { 
+      background-color: var(--accent-color); 
+      color: #000; 
+    }
+    button.primary-btn:hover { background-color: var(--accent-hover); }
+
+    button.secondary-btn { 
+      background-color: var(--card-bg); 
+      border-color: var(--border-color);
+      color: var(--text-main); 
+    }
+    button.secondary-btn:hover { background-color: var(--card-hover); }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 15px;
+      font-family: "Fira Code", Consolas, Monaco, "Courier New", monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Code Combiner</h1>
+    <div class="stats-bar">
+      <div>Files: <span id="total-files">0</span></div>
+      <div>Lines: <span id="total-lines">0</span></div>
+      <div>Size: <span id="total-size">0 KB</span></div>
+    </div>
+  </header>
+
+  <div id="storage-warning">
+    ⚠️ <strong>Storage Limit Exceeded (&gt; 5MB):</strong> Your combined code exceeds the browser's persistent storage limit. You can still combine and copy everything now, but extra files will <strong>not auto-save on page reload</strong>.
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <div id="drop-zone">
+        <strong>Drag & Drop files here</strong>
+        <p>or click to select (adds incrementally)</p>
+        <input type="file" id="file-input" multiple style="display: none;">
+      </div>
+
+      <div class="file-list-container" id="file-list">
+        <!-- File cards will render here -->
+      </div>
+    </div>
+
+    <div class="main-panel">
+      <div class="actions">
+        <button class="secondary-btn" id="clear-btn">Clear All</button>
+        <button class="primary-btn" id="copy-btn">Copy All for AI</button>
+      </div>
+      <textarea id="output-preview" readonly placeholder="Your combined code output will preview here..."></textarea>
+    </div>
+  </div>
+
+  <script>
+    const MAX_STORAGE_BYTES = 5 * 1024 * 1024; // 5MB limit check
+    const loadedFiles = new Map();
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileListEl = document.getElementById('file-list');
+    const outputPreview = document.getElementById('output-preview');
+
+    const totalFilesEl = document.getElementById('total-files');
+    const totalLinesEl = document.getElementById('total-lines');
+    const totalSizeEl = document.getElementById('total-size');
+    const storageWarning = document.getElementById('storage-warning');
+
+    const copyBtn = document.getElementById('copy-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    window.addEventListener('DOMContentLoaded', loadSavedFiles);
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('hover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    function handleFiles(files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target.result;
+          const lines = content.split('\n').length;
+          const chars = content.length;
+
+          loadedFiles.set(file.name, { content, lines, chars });
+          saveToStorage();
+          updateUI();
+        };
+        reader.readAsText(file);
+      });
+      fileInput.value = '';
+    }
+
+    function removeFile(fileName) {
+      loadedFiles.delete(fileName);
+      saveToStorage();
+      updateUI();
+    }
+
+    function saveToStorage() {
+      try {
+        const dataObj = Object.fromEntries(loadedFiles);
+        const serialized = JSON.stringify(dataObj);
+        
+        if (new Blob([serialized]).size > MAX_STORAGE_BYTES) {
+          storageWarning.style.display = 'block';
+          return;
+        }
+        
+        storageWarning.style.display = 'none';
+        localStorage.setItem('code_combiner_data', serialized);
+      } catch (e) {
+        // Fallback catch if browser quota fails directly
+        storageWarning.style.display = 'block';
+      }
+    }
+
+    function loadSavedFiles() {
+      const saved = localStorage.getItem('code_combiner_data');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          Object.entries(parsed).forEach(([name, data]) => {
+            loadedFiles.set(name, data);
+          });
+          updateUI();
+        } catch (e) {
+          console.error('Failed to parse saved files', e);
+        }
+      }
+    }
+
+    function updateUI() {
+      fileListEl.innerHTML = '';
+      let combinedText = '';
+      let totalLines = 0;
+      let totalChars = 0;
+
+      loadedFiles.forEach((data, name) => {
+        totalLines += data.lines;
+        totalChars += data.chars;
+
+        combinedText += `// ====================================\n`;
+        combinedText += `// FILE: ${name}\n`;
+        combinedText += `// LINES: ${data.lines} | CHARACTERS: ${data.chars}\n`;
+        combinedText += `// ====================================\n\n`;
+        combinedText += data.content + `\n\n`;
+
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.innerHTML = `
+          <div class="file-info">
+            <div class="file-name" title="${name}">${name}</div>
+            <div class="file-stats">${data.lines.toLocaleString()} lines • ${data.chars.toLocaleString()} chars</div>
+          </div>
+          <button class="remove-btn" title="Remove file">&times;</button>
+        `;
+        card.querySelector('.remove-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFile(name);
+        });
+        fileListEl.appendChild(card);
+      });
+
+      // Format byte size (KB or MB)
+      const sizeKB = (totalChars / 1024).toFixed(1);
+      const sizeMB = (totalChars / (1024 * 1024)).toFixed(2);
+      const displaySize = totalChars > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+      totalFilesEl.textContent = loadedFiles.size;
+      totalLinesEl.textContent = totalLines.toLocaleString();
+      totalSizeEl.textContent = displaySize;
+
+      if (totalChars <= MAX_STORAGE_BYTES) {
+        storageWarning.style.display = 'none';
+      } else {
+        storageWarning.style.display = 'block';
+      }
+
+      outputPreview.value = combinedText;
+    }
+
+    copyBtn.addEventListener('click', () => {
+      if (loadedFiles.size === 0) return;
+      navigator.clipboard.writeText(outputPreview.value);
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = 'Copied to Clipboard!';
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+      }, 1500);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      loadedFiles.clear();
+      localStorage.removeItem('code_combiner_data');
+      updateUI();
+    });
+  </script>
+</body>
+</html>
