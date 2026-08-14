@@ -23,4 +23,4 @@ A lightweight, 100% local, single-page web app to incrementally drag, drop, and 
 ### Option 1: Use Locally
 1. Clone or download this repository:
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/code-combiner.git](https://github.com/YOUR_USERNAME/code-combiner.git)
+   git clone https://github.com/Juxtdiamond/code-combiner.git
