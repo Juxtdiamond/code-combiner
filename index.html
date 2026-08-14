@@ -91,8 +91,16 @@
       background-color: var(--card-hover);
     }
     
-    #drop-zone p { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+    #drop-zone p { font-size: 0.85rem; color: var(--text-muted); margin-top: 6px; }
     #drop-zone strong { color: var(--text-main); }
+    .select-link {
+      color: var(--accent-color);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .select-link:hover {
+      color: var(--accent-hover);
+    }
 
     .file-list-container {
       flex: 1;
@@ -103,29 +111,71 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
     }
 
-    .file-card {
-      background-color: var(--bg-color);
+    /* Group styling for subfolders */
+    .folder-group {
+      background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .folder-header {
+      background-color: #242424;
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+
+    .folder-remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .folder-remove-btn:hover { color: var(--danger-color); }
+
+    .folder-files-container {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background-color: #161616;
+    }
+
+    /* Individual file card inside a folder */
+    .file-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .file-info { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-    .file-name { font-weight: 500; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
-    .file-stats { font-size: 0.75rem; color: var(--text-muted); }
+    .file-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; width: 85%; }
+    .file-name { font-weight: 500; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+    .file-stats { font-size: 0.7rem; color: var(--text-muted); }
 
     .remove-btn {
       background: none;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 1.1rem;
+      font-size: 1rem;
       padding: 0 5px;
       transition: color 0.15s;
     }
@@ -197,13 +247,14 @@
   <div class="container">
     <div class="sidebar">
       <div id="drop-zone">
-        <strong>Drag & Drop files here</strong>
-        <p>or click to select (adds incrementally)</p>
+        <strong>Drag & Drop files or folders here</strong>
+        <p>or select <span class="select-link" id="select-files-trigger">Files</span> or a <span class="select-link" id="select-folder-trigger">Folder</span></p>
         <input type="file" id="file-input" multiple style="display: none;">
+        <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;">
       </div>
 
       <div class="file-list-container" id="file-list">
-        <!-- File cards will render here -->
+        <!-- File groups and cards will render here -->
       </div>
     </div>
 
@@ -218,10 +269,39 @@
 
   <script>
     const MAX_STORAGE_BYTES = 5 * 1024 * 1024; // 5MB limit check
+    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB individual file limit
     const loadedFiles = new Map();
+
+    // Standard list of directories to completely ignore when importing folders
+    const IGNORED_FOLDERS = new Set([
+      '.git',
+      '.github',
+      'node_modules',
+      'dist',
+      'build',
+      '.next',
+      '.nuxt',
+      'out',
+      '.cache',
+      '.vscode',
+      '.idea',
+      '__pycache__'
+    ]);
+
+    // Standard list of specific files to ignore
+    const IGNORED_FILES = new Set([
+      '.DS_Store',
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml'
+    ]);
 
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
+    const folderInput = document.getElementById('folder-input');
+    const selectFilesTrigger = document.getElementById('select-files-trigger');
+    const selectFolderTrigger = document.getElementById('select-folder-trigger');
+    
     const fileListEl = document.getElementById('file-list');
     const outputPreview = document.getElementById('output-preview');
 
@@ -235,36 +315,202 @@
 
     window.addEventListener('DOMContentLoaded', loadSavedFiles);
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    // Prevent default window drop behavior (prevents browser from opening folders in tab)
+    window.addEventListener('dragover', (e) => { e.preventDefault(); }, false);
+    window.addEventListener('drop', (e) => { e.preventDefault(); }, false);
+
+    // Setup input trigger links
+    selectFilesTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+
+    selectFolderTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      folderInput.click();
+    });
+
+    dropZone.addEventListener('click', (e) => {
+      if (e.target !== selectFilesTrigger && e.target !== selectFolderTrigger) {
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => handleLegacyFiles(e.target.files));
+    folderInput.addEventListener('change', (e) => handleLegacyFiles(e.target.files));
 
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+    
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('hover');
-      handleFiles(e.dataTransfer.files);
+      
+      const items = e.dataTransfer.items;
+      if (items) {
+        const entries = [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file') {
+            const entry = items[i].webkitGetAsEntry();
+            if (entry) {
+              entries.push(entry);
+            }
+          }
+        }
+        processEntries(entries);
+      } else {
+        handleLegacyFiles(e.dataTransfer.files);
+      }
     });
 
-    function handleFiles(files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const content = event.target.result;
-          const lines = content.split('\n').length;
-          const chars = content.length;
-
-          loadedFiles.set(file.name, { content, lines, chars });
-          saveToStorage();
-          updateUI();
-        };
-        reader.readAsText(file);
-      });
-      fileInput.value = '';
+    // Heuristic to determine if file is a readable text/code file
+    function isTextFile(file, content) {
+      if (file.size > MAX_FILE_SIZE_BYTES) return false;
+      
+      const binaryExtensions = /\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|rar|7z|exe|dll|so|dylib|bin|mp3|mp4|wav|avi|mov|woff2?|ttf|otf|pyc|class|db|sqlite|node)$/i;
+      if (binaryExtensions.test(file.name)) {
+        return false;
+      }
+      
+      if (content.includes('\u0000')) {
+        return false;
+      }
+      
+      return true;
     }
 
-    function removeFile(fileName) {
-      loadedFiles.delete(fileName);
+    // Handles standard manual click selection inputs
+    function handleLegacyFiles(files) {
+      const filesToProcess = Array.from(files).map(file => ({
+        file,
+        relativePath: file.webkitRelativePath || file.name
+      }));
+      processParsedFiles(filesToProcess);
+    }
+
+    // Handles drag and drop with directory traversal support
+    async function processEntries(entries) {
+      const filesToProcess = [];
+
+      async function readAllDirectoryEntries(directoryEntry) {
+        const dirReader = directoryEntry.createReader();
+        const allEntries = [];
+        
+        const readBatch = () => {
+          return new Promise((resolve, reject) => {
+            dirReader.readEntries(resolve, reject);
+          });
+        };
+
+        try {
+          let results = await readBatch();
+          while (results.length > 0) {
+            allEntries.push(...results);
+            results = await readBatch();
+          }
+        } catch (err) {
+          console.error("Error reading directory items:", err);
+        }
+        return allEntries;
+      }
+
+      async function traverse(entry, path = "") {
+        // Skip ignored directories completely
+        if (entry.isDirectory && IGNORED_FOLDERS.has(entry.name)) {
+          return;
+        }
+
+        // Skip ignored files completely
+        if (entry.isFile && IGNORED_FILES.has(entry.name)) {
+          return;
+        }
+
+        if (entry.isFile) {
+          const file = await new Promise((resolve) => entry.file(resolve));
+          const relativePath = path ? `${path}/${entry.name}` : entry.name;
+          filesToProcess.push({ file, relativePath });
+        } else if (entry.isDirectory) {
+          const subEntries = await readAllDirectoryEntries(entry);
+          const nextPath = path ? `${path}/${entry.name}` : entry.name;
+          for (const subEntry of subEntries) {
+            await traverse(subEntry, nextPath);
+          }
+        }
+      }
+
+      for (const entry of entries) {
+        await traverse(entry);
+      }
+
+      processParsedFiles(filesToProcess);
+    }
+
+    // Processes parsed lists of files, runs exclusions, and imports valid ones
+    function processParsedFiles(fileList) {
+      let skippedCount = 0;
+      let loadedCount = 0;
+
+      // Filter out files that match any ignored folder structure or ignored files
+      const filteredList = fileList.filter(({ file, relativePath }) => {
+        const parts = relativePath.split('/');
+        const hasIgnoredFolder = parts.some(part => IGNORED_FOLDERS.has(part));
+        const isIgnoredFile = IGNORED_FILES.has(file.name);
+        return !hasIgnoredFolder && !isIgnoredFile;
+      });
+
+      const promises = filteredList.map(({ file, relativePath }) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const content = event.target.result;
+            
+            if (!isTextFile(file, content)) {
+              skippedCount++;
+              resolve();
+              return;
+            }
+
+            const lines = content.split('\n').length;
+            const chars = content.length;
+
+            loadedFiles.set(relativePath, { content, lines, chars });
+            loadedCount++;
+            resolve();
+          };
+          reader.onerror = () => {
+            skippedCount++;
+            resolve();
+          };
+          reader.readAsText(file);
+        });
+      });
+
+      Promise.all(promises).then(() => {
+        saveToStorage();
+        updateUI();
+        fileInput.value = '';
+        folderInput.value = '';
+        if (skippedCount > 0) {
+          console.log(`Skipped ${skippedCount} non-text or binary files.`);
+        }
+      });
+    }
+
+    function removeFile(relativePath) {
+      loadedFiles.delete(relativePath);
+      saveToStorage();
+      updateUI();
+    }
+
+    // Bulk remove entire subfolder group
+    function removeFolder(folderPath) {
+      loadedFiles.forEach((_, relativePath) => {
+        if (relativePath.startsWith(folderPath + '/') || relativePath === folderPath) {
+          loadedFiles.delete(relativePath);
+        } else if (folderPath === '(Root)' && !relativePath.includes('/')) {
+          loadedFiles.delete(relativePath);
+        }
+      });
       saveToStorage();
       updateUI();
     }
@@ -282,7 +528,6 @@
         storageWarning.style.display = 'none';
         localStorage.setItem('code_combiner_data', serialized);
       } catch (e) {
-        // Fallback catch if browser quota fails directly
         storageWarning.style.display = 'block';
       }
     }
@@ -292,8 +537,8 @@
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          Object.entries(parsed).forEach(([name, data]) => {
-            loadedFiles.set(name, data);
+          Object.entries(parsed).forEach(([path, data]) => {
+            loadedFiles.set(path, data);
           });
           updateUI();
         } catch (e) {
@@ -308,33 +553,75 @@
       let totalLines = 0;
       let totalChars = 0;
 
-      loadedFiles.forEach((data, name) => {
+      // Sort files alphabetically by path
+      const sortedFiles = new Map([...loadedFiles.entries()].sort());
+
+      // Group files by parent directory structure
+      const groups = {};
+      sortedFiles.forEach((data, relativePath) => {
         totalLines += data.lines;
         totalChars += data.chars;
 
+        // Generate combined output structure
         combinedText += `// ====================================\n`;
-        combinedText += `// FILE: ${name}\n`;
+        combinedText += `// FILE: ${relativePath}\n`;
         combinedText += `// LINES: ${data.lines} | CHARACTERS: ${data.chars}\n`;
         combinedText += `// ====================================\n\n`;
         combinedText += data.content + `\n\n`;
 
-        const card = document.createElement('div');
-        card.className = 'file-card';
-        card.innerHTML = `
-          <div class="file-info">
-            <div class="file-name" title="${name}">${name}</div>
-            <div class="file-stats">${data.lines.toLocaleString()} lines • ${data.chars.toLocaleString()} chars</div>
-          </div>
-          <button class="remove-btn" title="Remove file">&times;</button>
-        `;
-        card.querySelector('.remove-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          removeFile(name);
-        });
-        fileListEl.appendChild(card);
+        const pathParts = relativePath.split('/');
+        const fileName = pathParts.pop();
+        const directory = pathParts.join('/') || '(Root)';
+
+        if (!groups[directory]) {
+          groups[directory] = [];
+        }
+        groups[directory].push({ fileName, relativePath, data });
       });
 
-      // Format byte size (KB or MB)
+      // Render grouped file UI cards
+      Object.entries(groups).forEach(([directory, files]) => {
+        const folderGroup = document.createElement('div');
+        folderGroup.className = 'folder-group';
+
+        // Directory Header with a single remove-all button
+        const header = document.createElement('div');
+        header.className = 'folder-header';
+        header.innerHTML = `
+          <span>📁 ${directory}</span>
+          <button class="folder-remove-btn" title="Remove all files in this folder">&times;</button>
+        `;
+        header.querySelector('.folder-remove-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFolder(directory);
+        });
+        folderGroup.appendChild(header);
+
+        // Files container
+        const filesContainer = document.createElement('div');
+        filesContainer.className = 'folder-files-container';
+
+        files.forEach(({ fileName, relativePath, data }) => {
+          const card = document.createElement('div');
+          card.className = 'file-card';
+          card.innerHTML = `
+            <div class="file-info">
+              <div class="file-name" title="${relativePath}">${fileName}</div>
+              <div class="file-stats">${data.lines.toLocaleString()} lines • ${data.chars.toLocaleString()} chars</div>
+            </div>
+            <button class="remove-btn" title="Remove file">&times;</button>
+          `;
+          card.querySelector('.remove-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFile(relativePath);
+          });
+          filesContainer.appendChild(card);
+        });
+
+        folderGroup.appendChild(filesContainer);
+        fileListEl.appendChild(folderGroup);
+      });
+
       const sizeKB = (totalChars / 1024).toFixed(1);
       const sizeMB = (totalChars / (1024 * 1024)).toFixed(2);
       const displaySize = totalChars > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
