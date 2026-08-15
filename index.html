@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,8 +19,12 @@
       --warning-color: #f59e0b;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg-color);
@@ -29,6 +34,8 @@
       height: 100vh;
       padding: 20px;
       gap: 15px;
+      overflow: hidden;
+      /* Force layout to fit viewport and prevent outer scrolling */
     }
 
     header {
@@ -37,9 +44,14 @@
       align-items: center;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 15px;
+      flex-shrink: 0;
     }
 
-    h1 { font-size: 1.4rem; font-weight: 600; color: var(--text-main); }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
 
     .stats-bar {
       display: flex;
@@ -48,7 +60,10 @@
       color: var(--text-muted);
     }
 
-    .stats-bar span { color: var(--text-main); font-weight: 600; }
+    .stats-bar span {
+      color: var(--text-main);
+      font-weight: 600;
+    }
 
     /* Warning Banner when over storage limit */
     #storage-warning {
@@ -59,6 +74,7 @@
       padding: 10px 15px;
       border-radius: 6px;
       font-size: 0.85rem;
+      flex-shrink: 0;
     }
 
     .container {
@@ -67,6 +83,7 @@
       gap: 20px;
       flex: 1;
       min-height: 0;
+      /* Allow grid items to shrink */
     }
 
     .sidebar {
@@ -74,6 +91,7 @@
       flex-direction: column;
       gap: 15px;
       min-height: 0;
+      /* Crucial for scrolling inside flex container */
     }
 
     #drop-zone {
@@ -84,20 +102,30 @@
       text-align: center;
       cursor: pointer;
       transition: all 0.2s ease;
+      flex-shrink: 0;
     }
 
-    #drop-zone.hover { 
+    #drop-zone.hover {
       border-color: var(--text-muted);
       background-color: var(--card-hover);
     }
-    
-    #drop-zone p { font-size: 0.85rem; color: var(--text-muted); margin-top: 6px; }
-    #drop-zone strong { color: var(--text-main); }
+
+    #drop-zone p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    #drop-zone strong {
+      color: var(--text-main);
+    }
+
     .select-link {
       color: var(--accent-color);
       text-decoration: underline;
       cursor: pointer;
     }
+
     .select-link:hover {
       color: var(--accent-hover);
     }
@@ -109,9 +137,12 @@
       border-radius: 8px;
       padding: 10px;
       overflow-y: auto;
+      /* Enable vertical scrolling */
       display: flex;
       flex-direction: column;
       gap: 12px;
+      min-height: 0;
+      /* Crucial for internal scrolling */
     }
 
     /* Group styling for subfolders */
@@ -122,6 +153,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     .folder-header {
@@ -145,7 +177,10 @@
       line-height: 1;
       transition: color 0.15s;
     }
-    .folder-remove-btn:hover { color: var(--danger-color); }
+
+    .folder-remove-btn:hover {
+      color: var(--danger-color);
+    }
 
     .folder-files-container {
       padding: 8px;
@@ -166,9 +201,27 @@
       align-items: center;
     }
 
-    .file-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; width: 85%; }
-    .file-name { font-weight: 500; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
-    .file-stats { font-size: 0.7rem; color: var(--text-muted); }
+    .file-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+      width: 85%;
+    }
+
+    .file-name {
+      font-weight: 500;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+    }
+
+    .file-stats {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
 
     .remove-btn {
       background: none;
@@ -179,7 +232,10 @@
       padding: 0 5px;
       transition: color 0.15s;
     }
-    .remove-btn:hover { color: var(--danger-color); }
+
+    .remove-btn:hover {
+      color: var(--danger-color);
+    }
 
     .main-panel {
       display: flex;
@@ -188,9 +244,15 @@
       min-height: 0;
     }
 
-    .actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
 
-    button.primary-btn, button.secondary-btn {
+    button.primary-btn,
+    button.secondary-btn {
       padding: 10px 18px;
       border-radius: 6px;
       border: 1px solid transparent;
@@ -200,18 +262,24 @@
       transition: all 0.2s;
     }
 
-    button.primary-btn { 
-      background-color: var(--accent-color); 
-      color: #000; 
+    button.primary-btn {
+      background-color: var(--accent-color);
+      color: #000;
     }
-    button.primary-btn:hover { background-color: var(--accent-hover); }
 
-    button.secondary-btn { 
-      background-color: var(--card-bg); 
-      border-color: var(--border-color);
-      color: var(--text-main); 
+    button.primary-btn:hover {
+      background-color: var(--accent-hover);
     }
-    button.secondary-btn:hover { background-color: var(--card-hover); }
+
+    button.secondary-btn {
+      background-color: var(--card-bg);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    button.secondary-btn:hover {
+      background-color: var(--card-hover);
+    }
 
     textarea {
       flex: 1;
@@ -229,6 +297,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <header>
@@ -241,14 +310,17 @@
   </header>
 
   <div id="storage-warning">
-    ⚠️ <strong>Storage Limit Exceeded (&gt; 5MB):</strong> Your combined code exceeds the browser's persistent storage limit. You can still combine and copy everything now, but extra files will <strong>not auto-save on page reload</strong>.
+    ⚠️ <strong>Storage Limit Exceeded (&gt; 5MB):</strong> Your combined code exceeds the browser's persistent storage
+    limit. You can still combine and copy everything now, but extra files will <strong>not auto-save on page
+      reload</strong>.
   </div>
 
   <div class="container">
     <div class="sidebar">
       <div id="drop-zone">
         <strong>Drag & Drop files or folders here</strong>
-        <p>or select <span class="select-link" id="select-files-trigger">Files</span> or a <span class="select-link" id="select-folder-trigger">Folder</span></p>
+        <p>or select <span class="select-link" id="select-files-trigger">Files</span> or a <span class="select-link"
+            id="select-folder-trigger">Folder</span></p>
         <input type="file" id="file-input" multiple style="display: none;">
         <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;">
       </div>
@@ -301,7 +373,7 @@
     const folderInput = document.getElementById('folder-input');
     const selectFilesTrigger = document.getElementById('select-files-trigger');
     const selectFolderTrigger = document.getElementById('select-folder-trigger');
-    
+
     const fileListEl = document.getElementById('file-list');
     const outputPreview = document.getElementById('output-preview');
 
@@ -341,11 +413,11 @@
 
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
-    
+
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('hover');
-      
+
       const items = e.dataTransfer.items;
       if (items) {
         const entries = [];
@@ -366,16 +438,16 @@
     // Heuristic to determine if file is a readable text/code file
     function isTextFile(file, content) {
       if (file.size > MAX_FILE_SIZE_BYTES) return false;
-      
+
       const binaryExtensions = /\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|rar|7z|exe|dll|so|dylib|bin|mp3|mp4|wav|avi|mov|woff2?|ttf|otf|pyc|class|db|sqlite|node)$/i;
       if (binaryExtensions.test(file.name)) {
         return false;
       }
-      
+
       if (content.includes('\u0000')) {
         return false;
       }
-      
+
       return true;
     }
 
@@ -395,7 +467,7 @@
       async function readAllDirectoryEntries(directoryEntry) {
         const dirReader = directoryEntry.createReader();
         const allEntries = [];
-        
+
         const readBatch = () => {
           return new Promise((resolve, reject) => {
             dirReader.readEntries(resolve, reject);
@@ -463,7 +535,7 @@
           const reader = new FileReader();
           reader.onload = (event) => {
             const content = event.target.result;
-            
+
             if (!isTextFile(file, content)) {
               skippedCount++;
               resolve();
@@ -519,12 +591,12 @@
       try {
         const dataObj = Object.fromEntries(loadedFiles);
         const serialized = JSON.stringify(dataObj);
-        
+
         if (new Blob([serialized]).size > MAX_STORAGE_BYTES) {
           storageWarning.style.display = 'block';
           return;
         }
-        
+
         storageWarning.style.display = 'none';
         localStorage.setItem('code_combiner_data', serialized);
       } catch (e) {
@@ -656,4 +728,5 @@
     });
   </script>
 </body>
+
 </html>
