@@ -1,5 +1,5 @@
 // ==========================================
-// INDEXEDDB ENGINE
+// INDEXEDDB STORAGE ENGINE
 // ==========================================
 const DB_NAME = 'CodeCombinerDB';
 const DB_VERSION = 1;
@@ -72,10 +72,7 @@ async function dbLoadSetting(key, defaultVal) {
 // CORE STATE & CONFIG
 // ==========================================
 const MAX_FILE_SIZE_BYTES = 12 * 1024 * 1024;
-const loadedFiles = new Map(); // path => { content, lines, chars, included }
-
-// Standard anime/samurai duel wallpaper (Miyamoto Musashi duel at Ganryu-jima)
-const DEFAULT_WALLPAPER = 'https://upload.wikimedia.org/wikipedia/commons/b/b5/Miyamoto-Musashi-Fights-Sasaki-Kojiro-at-Ganryujima-Ukiyo-e.png';
+const loadedFiles = new Map();
 
 const DEFAULT_IGNORED_FOLDERS = new Set([
   '.git', '.github', 'node_modules', 'dist', 'build',
@@ -96,8 +93,6 @@ let savedPrePrompts = [
 let activePromptId = null;
 let includeAsciiTree = true;
 let collapsedFolders = new Set();
-let currentWallpaper = DEFAULT_WALLPAPER;
-let currentOpacity = 0.45;
 
 // DOM Elements
 const dropZone = document.getElementById('drop-zone');
@@ -113,7 +108,7 @@ const toggleAllBtn = document.getElementById('toggle-all-btn');
 const collapseAllBtn = document.getElementById('collapse-all-btn');
 const includeTreeToggle = document.getElementById('include-tree-toggle');
 const outputPreview = document.getElementById('output-preview');
-const previewArtwork = document.getElementById('preview-artwork');
+const triggerClashBtn = document.getElementById('trigger-clash-btn');
 
 const totalFilesEl = document.getElementById('total-files');
 const totalLinesEl = document.getElementById('total-lines');
@@ -141,15 +136,6 @@ const ignoreModalCancel = document.getElementById('ignore-modal-cancel');
 const ignoreModalSave = document.getElementById('ignore-modal-save');
 const ignorePatternsInput = document.getElementById('ignore-patterns-input');
 
-const wallpaperModal = document.getElementById('wallpaper-modal');
-const openWallpaperModalBtn = document.getElementById('open-wallpaper-modal-btn');
-const wallpaperModalClose = document.getElementById('wallpaper-modal-close');
-const wallpaperModalSave = document.getElementById('wallpaper-modal-save');
-const wallpaperUrlInput = document.getElementById('wallpaper-url-input');
-const wallpaperOpacityInput = document.getElementById('wallpaper-opacity-input');
-const opacityVal = document.getElementById('opacity-val');
-const resetWallpaperBtn = document.getElementById('reset-wallpaper-btn');
-
 const prepromptModal = document.getElementById('preprompt-modal');
 const managePrepromptsBtn = document.getElementById('manage-preprompts-btn');
 const prepromptModalClose = document.getElementById('preprompt-modal-close');
@@ -167,11 +153,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   customIgnorePatterns = await dbLoadSetting('custom_ignores', ['*.test.*', '*.spec.*', '*.svg']);
   savedPrePrompts = await dbLoadSetting('saved_preprompts', savedPrePrompts);
   includeAsciiTree = await dbLoadSetting('include_ascii_tree', true);
-  currentWallpaper = await dbLoadSetting('wallpaper_url', DEFAULT_WALLPAPER);
-  currentOpacity = await dbLoadSetting('wallpaper_opacity', 0.45);
 
   includeTreeToggle.checked = includeAsciiTree;
-  applyWallpaper(currentWallpaper, currentOpacity);
 
   const saved = await dbLoadAllFiles();
   saved.forEach((item) => {
@@ -185,18 +168,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   renderPrePromptChips();
   updateUI();
+  initCinematicStickDuel();
 });
 
-function applyWallpaper(url, opacity) {
-  previewArtwork.style.backgroundImage = `url("${url}")`;
-  previewArtwork.style.opacity = opacity;
-}
-
-// Window drop prevention
+// Window Drag & Drops
 window.addEventListener('dragover', (e) => e.preventDefault(), false);
 window.addEventListener('drop', (e) => e.preventDefault(), false);
 
-// Pickers
 selectFilesTrigger.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
 selectFolderTrigger.addEventListener('click', (e) => { e.stopPropagation(); folderInput.click(); });
 selectLogTrigger.addEventListener('click', (e) => { e.stopPropagation(); openPasteModal(); });
@@ -231,7 +209,7 @@ dropZone.addEventListener('drop', (e) => {
   }
 });
 
-// Global Paste (Ctrl+V)
+// Global Paste
 window.addEventListener('paste', (e) => {
   const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
   if (activeTag === 'input' || activeTag === 'textarea') return;
@@ -243,7 +221,6 @@ window.addEventListener('paste', (e) => {
   }
 });
 
-// Search & Tree Controls
 searchFilter.addEventListener('input', () => updateUI());
 
 toggleAllBtn.addEventListener('click', () => {
@@ -270,36 +247,727 @@ includeTreeToggle.addEventListener('change', (e) => {
   updateUI();
 });
 
-// Wallpaper Modal
-openWallpaperModalBtn.addEventListener('click', () => {
-  wallpaperUrlInput.value = currentWallpaper;
-  wallpaperOpacityInput.value = Math.round(currentOpacity * 100);
-  opacityVal.textContent = `${wallpaperOpacityInput.value}%`;
-  wallpaperModal.classList.add('open');
-});
+// ==========================================
+// CINEMATIC SAMURAI CHOREOGRAPHY ENGINE
+// ==========================================
+function initCinematicStickDuel() {
+  const canvas = document.getElementById('duel-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
 
-wallpaperOpacityInput.addEventListener('input', (e) => {
-  opacityVal.textContent = `${e.target.value}%`;
-});
+  let width = canvas.width = canvas.offsetWidth;
+  let height = canvas.height = canvas.offsetHeight;
 
-wallpaperModalClose.addEventListener('click', () => wallpaperModal.classList.remove('open'));
+  window.addEventListener('resize', () => {
+    width = canvas.width = canvas.offsetWidth;
+    height = canvas.height = canvas.offsetHeight;
+  });
 
-resetWallpaperBtn.addEventListener('click', () => {
-  wallpaperUrlInput.value = DEFAULT_WALLPAPER;
-  wallpaperOpacityInput.value = 45;
-  opacityVal.textContent = '45%';
-});
+  const sparks = [];
+  const slashes = [];
+  const dusts = [];
+  const petals = [];
 
-wallpaperModalSave.addEventListener('click', () => {
-  currentWallpaper = wallpaperUrlInput.value.trim() || DEFAULT_WALLPAPER;
-  currentOpacity = parseFloat(wallpaperOpacityInput.value) / 100;
-  applyWallpaper(currentWallpaper, currentOpacity);
-  dbSaveSetting('wallpaper_url', currentWallpaper);
-  dbSaveSetting('wallpaper_opacity', currentOpacity);
-  wallpaperModal.classList.remove('open');
-});
+  for (let i = 0; i < 35; i++) {
+    petals.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: 0.6 + Math.random() * 1.4,
+      vy: 0.3 + Math.random() * 0.7,
+      size: 2.5 + Math.random() * 3,
+      rot: Math.random() * Math.PI,
+      rotSpeed: (Math.random() - 0.5) * 0.04
+    });
+  }
 
-// Pre-Prompts
+  let screenShake = 0;
+
+  // The Two Samurai Fighters
+  const f1 = {
+    x: -80, // Starts off-screen left
+    y: 0,
+    vx: 0,
+    vy: 0,
+    facing: 1,
+    color: '#ef4444',
+    bladeColor: '#fca5a5',
+    sheathed: true,
+    sheathProgress: 0,
+    swordAngle: -1.2,
+    tilt: 0,
+    legPhase: 0,
+    trail: []
+  };
+
+  const f2 = {
+    x: width + 80, // Starts off-screen right
+    y: 0,
+    vx: 0,
+    vy: 0,
+    facing: -1,
+    color: '#06b6d4',
+    bladeColor: '#67e8f9',
+    sheathed: true,
+    sheathProgress: 0,
+    swordAngle: 1.2,
+    tilt: 0,
+    legPhase: Math.PI,
+    trail: []
+  };
+
+  // Choreography sequence:
+  // 1. ENTRANCE (Walk in from both walls)
+  // 2. DRAW (Quick-draw unsheath with blade glint)
+  // 3. STALK (Slow pacing, testing range)
+  // 4. FEINT_PARRY (Probe thrust, instant block)
+  // 5. COMBO_CLASH (3-hit high-low exchange)
+  // 6. POWER_LOCK (Lock blades at center with sparks and vibration)
+  // 7. PUSH_KICK (Slide backwards across floor)
+  // 8. AERIAL_LEAP (Mid-air somersault cross-slash)
+  // 9. SHEATHE_RESET (Resheath katana, pause, reset)
+  let battleState = 'ENTRANCE';
+  let stateTimer = 0;
+  let ticks = 0;
+
+  function emitSparks(x, y, count = 25, power = 1) {
+    screenShake = Math.min(10, count * 0.25);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() - 0.5) * Math.PI * 1.9;
+      const speed = (4 + Math.random() * 12) * power;
+      sparks.push({
+        x: x,
+        y: y + (Math.random() - 0.5) * 16,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2.5,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.035,
+        color: Math.random() > 0.4 ? '#fef08a' : '#fb923c'
+      });
+    }
+
+    slashes.push({
+      x: x,
+      y: y,
+      radius: 20 + Math.random() * 25,
+      life: 1,
+      startAngle: Math.random() * Math.PI * 2,
+      sweep: Math.PI * (0.45 + Math.random() * 0.35),
+      color: Math.random() > 0.5 ? '#fca5a5' : '#67e8f9'
+    });
+  }
+
+  function emitDust(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      dusts.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y - 2,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 2,
+        life: 1,
+        size: 3 + Math.random() * 5
+      });
+    }
+  }
+
+  function triggerInteractiveClash() {
+    f1.sheathed = false;
+    f2.sheathed = false;
+    battleState = 'CLOSE_IN';
+    stateTimer = 0;
+  }
+
+  triggerClashBtn.addEventListener('click', triggerInteractiveClash);
+  let inputClashTimeout;
+  outputPreview.addEventListener('input', () => {
+    clearTimeout(inputClashTimeout);
+    inputClashTimeout = setTimeout(triggerInteractiveClash, 250);
+  });
+
+  function render() {
+    ticks++;
+    stateTimer++;
+    ctx.clearRect(0, 0, width, height);
+    const groundY = height * 0.80;
+
+    // Apply Screen Shake
+    ctx.save();
+    if (screenShake > 0.1) {
+      const shakeX = (Math.random() - 0.5) * screenShake * 2;
+      const shakeY = (Math.random() - 0.5) * screenShake * 2;
+      ctx.translate(shakeX, shakeY);
+      screenShake *= 0.85;
+    }
+
+    // ==========================================
+    // THE CHOREOGRAPHY SCRIPT
+    // ==========================================
+    if (battleState === 'ENTRANCE') {
+      // Walk out from the edge walls towards their starting marks
+      f1.sheathed = true;
+      f2.sheathed = true;
+      f1.facing = 1;
+      f2.facing = -1;
+
+      const targetX1 = width * 0.35;
+      const targetX2 = width * 0.65;
+
+      f1.vx = (targetX1 - f1.x) * 0.05;
+      f2.vx = (targetX2 - f2.x) * 0.05;
+
+      f1.tilt = 0.1;
+      f2.tilt = -0.1;
+
+      if (Math.abs(f1.x - targetX1) < 4 && Math.abs(f2.x - targetX2) < 4) {
+        battleState = 'DRAW';
+        stateTimer = 0;
+      }
+    } else if (battleState === 'DRAW') {
+      // Pause, hand reaches to hip, thumb glints, snap-draws blade!
+      f1.vx = 0;
+      f2.vx = 0;
+
+      if (stateTimer < 14) {
+        // Tense pause
+        f1.tilt = 0.05;
+        f2.tilt = -0.05;
+      } else if (stateTimer === 14) {
+        // Quick-draw flash!
+        f1.sheathed = false;
+        f2.sheathed = false;
+        emitSparks(f1.x + 25, groundY - 50, 15, 0.6);
+        emitSparks(f2.x - 25, groundY - 50, 15, 0.6);
+      } else if (stateTimer > 22) {
+        battleState = 'STALK';
+        stateTimer = 0;
+      }
+    } else if (battleState === 'STALK') {
+      // Circling, testing distance
+      f1.vx = Math.sin(ticks * 0.05) * 0.8;
+      f2.vx = -Math.sin(ticks * 0.05) * 0.8;
+
+      const guardAngle = -0.08 + Math.sin(ticks * 0.08) * 0.08;
+      f1.swordAngle = guardAngle;
+      f2.swordAngle = guardAngle;
+      f1.tilt = 0.12;
+      f2.tilt = -0.12;
+
+      if (stateTimer > 45) {
+        battleState = 'CLOSE_IN';
+        stateTimer = 0;
+      }
+    } else if (battleState === 'CLOSE_IN') {
+      f1.sheathed = false;
+      f2.sheathed = false;
+      f1.swordAngle = 0;
+      f2.swordAngle = 0;
+      f1.tilt = 0.1;
+      f2.tilt = -0.1;
+
+      const clashGap = Math.min(170, Math.max(140, width * 0.2));
+      const targetX1 = width / 2 - clashGap / 2;
+      const targetX2 = width / 2 + clashGap / 2;
+      const distance1 = targetX1 - f1.x;
+      const distance2 = targetX2 - f2.x;
+      f1.vx = Math.max(-12, Math.min(12, distance1 * 0.22));
+      f2.vx = Math.max(-12, Math.min(12, distance2 * 0.22));
+
+      if (Math.abs(distance1) < 3 && Math.abs(distance2) < 3) {
+        f1.x = targetX1;
+        f2.x = targetX2;
+        f1.vx = 0;
+        f2.vx = 0;
+        battleState = 'FEINT_PARRY';
+        stateTimer = 0;
+        emitSparks(width / 2, groundY - 68, 12, 0.65);
+      }
+    } else if (battleState === 'FEINT_PARRY') {
+      if (stateTimer < 10) {
+        // Windup (anticipation)
+        f1.vx = -0.8;
+        f1.swordAngle = -0.75;
+        f2.swordAngle = 0.1;
+        f1.tilt = -0.1;
+      } else if (stateTimer < 20) {
+        f1.vx = 2.5;
+        f1.swordAngle = 0.32;
+        f2.swordAngle = 0.32;
+        f1.tilt = 0.25;
+      } else if (stateTimer === 20) {
+        emitSparks(width / 2, groundY - 67, 24, 1.1);
+        f1.vx = -2;
+        f2.vx = 2;
+      } else if (stateTimer > 34) {
+        battleState = 'COMBO_CLASH';
+        stateTimer = 0;
+      }
+    } else if (battleState === 'COMBO_CLASH') {
+      // 3-hit rapid exchange
+      if (stateTimer < 15) {
+        // Hit 1: Red overhead slash -> Cyan high block
+        f1.swordAngle = -1;
+        f2.swordAngle = -1;
+        if (stateTimer === 10)         emitSparks(width / 2, groundY - 112, 22);
+      } else if (stateTimer < 30) {
+        // Hit 2: Cyan sweeps low -> Red hops
+        f2.swordAngle = 0.7;
+        f1.swordAngle = 0.7;
+        if (stateTimer === 22) {
+          f1.vy = -6; // Little hop
+          emitSparks(width / 2, groundY - 18, 22);
+        }
+      } else if (stateTimer < 45) {
+        // Hit 3: Simultaneous lunge into center lock
+        f1.swordAngle = 0.25;
+        f2.swordAngle = 0.25;
+        if (stateTimer === 38) emitSparks(width / 2, groundY - 50, 26, 1.15);
+      } else {
+        battleState = 'POWER_LOCK';
+        stateTimer = 0;
+        emitSparks(width / 2, groundY - 62, 35, 1.2);
+      }
+    } else if (battleState === 'POWER_LOCK') {
+      // Crossed swords locked, straining against each other
+      f1.vx = 0;
+      f2.vx = 0;
+      f1.tilt = 0.28;
+      f2.tilt = -0.28;
+      const lockAngle = 0.35 + Math.sin(ticks * 0.22) * 0.035;
+      f1.swordAngle = lockAngle;
+      f2.swordAngle = lockAngle;
+
+      if (ticks % 5 === 0) {
+        emitSparks(width / 2, groundY - 45, 7, 0.7);
+      }
+
+      if (stateTimer > 72) {
+        battleState = 'PUSH_KICK';
+        stateTimer = 0;
+        f1.vx = -10;
+        f2.vx = 10;
+        emitDust(f1.x, groundY, 10);
+        emitDust(f2.x, groundY, 10);
+        emitSparks(width / 2, groundY - 60, 30);
+      }
+    } else if (battleState === 'PUSH_KICK') {
+      // Sliding back, kicking up dust
+      f1.tilt = -0.35;
+      f2.tilt = 0.35;
+      f1.swordAngle = -0.6;
+      f2.swordAngle = 0.6;
+
+      if (ticks % 4 === 0) {
+        emitDust(f1.x, groundY, 2);
+        emitDust(f2.x, groundY, 2);
+      }
+
+      if (stateTimer > 35) {
+        battleState = 'AERIAL_LEAP';
+        stateTimer = 0;
+        f1.vy = -13;
+        f2.vy = -13;
+        f1.vx = 5;
+        f2.vx = -5;
+      }
+    } else if (battleState === 'AERIAL_LEAP') {
+      // Mid-air flip clash
+      const aerialGap = Math.min(190, Math.max(150, width * 0.22));
+      const aerialTarget1 = width / 2 - aerialGap / 2;
+      const aerialTarget2 = width / 2 + aerialGap / 2;
+      f1.vx = Math.max(-7, Math.min(7, (aerialTarget1 - f1.x) * 0.12));
+      f2.vx = Math.max(-7, Math.min(7, (aerialTarget2 - f2.x) * 0.12));
+      f1.swordAngle = -0.55;
+      f2.swordAngle = -0.55;
+
+      if (Math.abs(f1.x - f2.x) <= aerialGap + 12 && f1.y < groundY - 40) {
+        if (ticks % 6 === 0) emitSparks(width / 2, (f1.y + f2.y) / 2 - 45, 20);
+      }
+
+      if (stateTimer > 60 && f1.y >= groundY && f2.y >= groundY) {
+        battleState = 'SHEATHE_RESET';
+        stateTimer = 0;
+        emitDust(f1.x, groundY, 8);
+        emitDust(f2.x, groundY, 8);
+      }
+    } else if (battleState === 'SHEATHE_RESET') {
+      // Land in crouch, stand up, resheathe katana with glint
+      f1.vx = 0;
+      f2.vx = 0;
+
+      if (stateTimer < 20) {
+        // Deep crouch landing
+        f1.tilt = 0.2;
+        f2.tilt = -0.2;
+      } else if (stateTimer === 35) {
+        // Click into sheath
+        f1.sheathed = true;
+        f2.sheathed = true;
+        emitSparks(f1.x + 20, groundY - 45, 6, 0.4);
+        emitSparks(f2.x - 20, groundY - 45, 6, 0.4);
+      } else if (stateTimer > 60) {
+        battleState = 'STALK';
+        stateTimer = 0;
+      }
+    }
+
+    // Physics Update
+    [f1, f2].forEach(f => {
+      f.x += f.vx;
+      f.y += f.vy;
+      f.vx *= 0.88;
+
+      if (f.y < groundY) {
+        f.vy += 0.65; // Gravity
+      } else {
+        f.y = groundY;
+        f.vy = 0;
+      }
+    });
+
+    // Hard Collision Barrier (They never overlap or cross)
+    const MIN_DISTANCE = 56;
+    if (battleState !== 'ENTRANCE' && (f2.x - f1.x < MIN_DISTANCE)) {
+      const mid = (f1.x + f2.x) / 2;
+      f1.x = mid - MIN_DISTANCE / 2;
+      f2.x = mid + MIN_DISTANCE / 2;
+    }
+
+    // Keep on screen (except during entrance)
+    if (battleState !== 'ENTRANCE') {
+      f1.x = Math.max(width * 0.08, Math.min(width * 0.48, f1.x));
+      f2.x = Math.max(width * 0.52, Math.min(width * 0.92, f2.x));
+    }
+
+    // ==========================================
+    // DRAW ENVIRONMENT
+    // ==========================================
+
+    // Moon Glow
+    const moonX = width * 0.5;
+    const moonY = height * 0.28;
+    const moonGrad = ctx.createRadialGradient(moonX, moonY, 15, moonX, moonY, 150);
+    moonGrad.addColorStop(0, 'rgba(255, 245, 230, 0.16)');
+    moonGrad.addColorStop(0.5, 'rgba(239, 68, 68, 0.05)');
+    moonGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = moonGrad;
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, 150, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ground Platform Line
+    ctx.strokeStyle = 'rgba(75, 85, 99, 0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.04, groundY);
+    ctx.lineTo(width * 0.96, groundY);
+    ctx.stroke();
+
+    // ==========================================
+    // DRAW FIGHTER RIG
+    // ==========================================
+    function drawFighter(f) {
+      ctx.save();
+
+      const shadowScale = Math.max(0.2, 1 - (groundY - f.y) / 160);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+      ctx.beginPath();
+      ctx.ellipse(f.x, groundY + 2, 26 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.translate(f.x, f.y);
+      ctx.scale(f.facing, 1);
+      const aura = 1 + Math.sin(ticks * 0.18 + f.x * 0.04) * 0.12;
+      ctx.strokeStyle = `${f.color}66`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(0, -38, 22 * aura, 38 * aura, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const isAirborne = f.y < groundY - 5;
+      const isRunning = Math.abs(f.vx) > 1;
+      if (isRunning) f.legPhase += 0.28;
+
+      const hipX = 0;
+      const hipY = -46;
+      const neckX = Math.sin(f.tilt) * 36;
+      const neckY = -86;
+      const headX = neckX + Math.sin(f.tilt) * 12;
+      const headY = neckY - 14;
+
+      function drawLeg(phase, offset) {
+        let kneeAngle, footAngle;
+        if (isAirborne) {
+          kneeAngle = 0.9 + offset * 0.12;
+          footAngle = -0.55;
+        } else if (isRunning) {
+          kneeAngle = Math.sin(f.legPhase + phase) * 0.78 + 0.35;
+          footAngle = Math.cos(f.legPhase + phase) * 0.65 - 0.2;
+        } else {
+          kneeAngle = 0.24 + offset * 0.14;
+          footAngle = 0.08 + offset * 0.06;
+        }
+
+        const kneeX = hipX + Math.sin(kneeAngle) * 22;
+        const kneeY = hipY + Math.cos(kneeAngle) * 22;
+        const footX = kneeX + Math.sin(kneeAngle + footAngle) * 22;
+        const footY = kneeY + Math.cos(kneeAngle + footAngle) * 22;
+
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        ctx.quadraticCurveTo(kneeX - 4, kneeY - 6, kneeX, kneeY);
+        ctx.quadraticCurveTo(kneeX + 6, kneeY + 3, footX, Math.min(0, footY));
+        ctx.stroke();
+      }
+
+      drawLeg(Math.PI, -1);
+      drawLeg(0, 1);
+
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(hipX, hipY);
+      ctx.quadraticCurveTo(hipX - 6, hipY - 18, neckX, neckY);
+      ctx.stroke();
+
+      ctx.fillStyle = `${f.color}35`;
+      ctx.strokeStyle = `${f.color}cc`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(neckX - 9, neckY + 5);
+      ctx.lineTo(neckX + 11, neckY + 5);
+      ctx.lineTo(hipX + 12, hipY - 2);
+      ctx.lineTo(hipX - 12, hipY - 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(headX, headY, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowColor = f.color;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = f.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(headX, headY, 11.5, Math.PI * 0.8, Math.PI * 1.8);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(headX - 3, headY - 1);
+      ctx.lineTo(headX + 3, headY - 1);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(headX - 4, headY + 4);
+      ctx.lineTo(headX + 4, headY + 4);
+      ctx.stroke();
+
+      const wave = Math.sin(ticks * 0.16 + f.x * 0.05) * 4.5;
+      ctx.strokeStyle = f.color;
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.moveTo(headX - 10, headY);
+      ctx.quadraticCurveTo(headX - 24, headY + wave, headX - 42, headY - 2 + wave * 1.2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(hipX - 14, hipY - 7);
+      ctx.lineTo(hipX + 18, hipY + 14);
+      ctx.stroke();
+
+      ctx.lineWidth = 3.4;
+      ctx.strokeStyle = '#f8fafc';
+      const shoulderX = neckX;
+      const shoulderY = neckY + 8;
+      let handX, handY;
+
+      if (f.sheathed) {
+        handX = hipX - 6;
+        handY = hipY - 2;
+        ctx.beginPath();
+        ctx.moveTo(shoulderX, shoulderY);
+        ctx.quadraticCurveTo(shoulderX - 8, shoulderY + 16, handX, handY);
+        ctx.stroke();
+      } else {
+        const elbowX = shoulderX + 12;
+        const elbowY = shoulderY + 14;
+        handX = shoulderX + 22;
+        handY = shoulderY + 11;
+
+        ctx.beginPath();
+        ctx.moveTo(shoulderX, shoulderY);
+        ctx.quadraticCurveTo(elbowX, elbowY - 2, handX, handY);
+        ctx.stroke();
+
+        const secondHandX = handX - 18;
+        const secondHandY = handY + 2;
+        ctx.beginPath();
+        ctx.moveTo(shoulderX - 5, shoulderY + 2);
+        ctx.quadraticCurveTo(shoulderX - 16, shoulderY + 16, secondHandX, secondHandY);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(handX, handY);
+        ctx.rotate(f.swordAngle);
+
+        const bladeGradient = ctx.createLinearGradient(0, -6, 0, 2);
+        bladeGradient.addColorStop(0, '#f8fafc');
+        bladeGradient.addColorStop(0.42, '#cbd5e1');
+        bladeGradient.addColorStop(1, '#64748b');
+        ctx.fillStyle = bladeGradient;
+        ctx.shadowColor = f.bladeColor;
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.moveTo(2, -3);
+        ctx.quadraticCurveTo(38, -7, 69, -6);
+        ctx.lineTo(78, -7);
+        ctx.quadraticCurveTo(52, 1, 2, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(4, -2);
+        ctx.quadraticCurveTo(42, -6, 75, -6.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, -7);
+        ctx.lineTo(0, 7);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(-34, 1.4);
+        ctx.lineTo(-3, 0);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1.1;
+        for (let wrap = -31; wrap < -5; wrap += 5) {
+          ctx.beginPath();
+          ctx.moveTo(wrap, -1.5);
+          ctx.lineTo(wrap + 3, 1.5);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    drawFighter(f1);
+    drawFighter(f2);
+
+    // ==========================================
+    // DRAW PARTICLES & VISUAL JUICE
+    // ==========================================
+
+    // Dust Clouds
+    for (let i = dusts.length - 1; i >= 0; i--) {
+      const d = dusts[i];
+      d.x += d.vx;
+      d.y += d.vy;
+      d.life -= 0.04;
+      d.size += 0.2;
+      if (d.life <= 0) {
+        dusts.splice(i, 1);
+        continue;
+      }
+      ctx.fillStyle = `rgba(148, 163, 184, ${d.life * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Slashes
+    for (let i = slashes.length - 1; i >= 0; i--) {
+      const s = slashes[i];
+      s.life -= 0.09;
+      s.radius += 2.5;
+      if (s.life <= 0) {
+        slashes.splice(i, 1);
+        continue;
+      }
+      ctx.strokeStyle = s.color;
+      ctx.shadowColor = s.color;
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = s.life * 3;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.radius, s.startAngle, s.startAngle + s.sweep);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Sparks
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.28;
+      p.life -= p.decay;
+
+      if (p.life <= 0) {
+        sparks.splice(i, 1);
+        continue;
+      }
+
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(1, p.life * 2.5), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // Floating Sakura Petals
+    petals.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.rotSpeed;
+
+      if (p.x > width) p.x = -10;
+      if (p.y > height) p.y = -10;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size * 1.4, p.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    ctx.restore();
+    requestAnimationFrame(render);
+  }
+
+  render();
+}
+
+// ==========================================
+// PRE-PROMPTS ENGINE
+// ==========================================
 function renderPrePromptChips() {
   prepromptsList.innerHTML = '';
   savedPrePrompts.forEach(p => {
@@ -558,7 +1226,7 @@ function getAllDirectories() {
 }
 
 // ==========================================
-// VS CODE HIERARCHICAL TREE ENGINE
+// VS CODE STYLE HIERARCHY TREE
 // ==========================================
 function buildHierarchy() {
   const root = { name: '', path: '', isDir: true, children: new Map(), files: [] };
@@ -629,11 +1297,9 @@ function renderTree() {
   }
 
   function renderDir(dirNode, container, depth = 0) {
-    // Sort subdirectories and files alphabetically
     const sortedDirs = Array.from(dirNode.children.values()).sort((a, b) => a.name.localeCompare(b.name));
     const sortedFiles = dirNode.files.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Render Subdirectories
     sortedDirs.forEach(child => {
       if (!matchesFilter(child)) return;
 
@@ -655,7 +1321,6 @@ function renderTree() {
       const checkbox = row.querySelector('.tree-folder-checkbox');
       checkbox.indeterminate = state.indeterminate;
 
-      // Expand / Collapse click
       row.addEventListener('click', (e) => {
         if (e.target === checkbox || e.target.classList.contains('tree-delete-btn')) return;
         if (collapsedFolders.has(child.path)) {
@@ -686,7 +1351,6 @@ function renderTree() {
       }
     });
 
-    // Render Files
     sortedFiles.forEach(({ name, path, data }) => {
       if (filterTerm && !path.toLowerCase().includes(filterTerm)) return;
 
@@ -808,7 +1472,7 @@ function updateUI() {
     }
   });
 
-  // 3. Optional ASCII Project Structure Tree
+  // 3. Optional ASCII Project Tree
   if (includeAsciiTree && includedPathsForTree.length > 0) {
     const asciiTree = buildAsciiTree(includedPathsForTree);
     combinedBody = `// ====================================\n` +
