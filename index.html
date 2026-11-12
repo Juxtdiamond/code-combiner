@@ -5,728 +5,182 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Local Code Combiner for AI</title>
-  <style>
-    :root {
-      --bg-color: #121212;
-      --card-bg: #1e1e1e;
-      --card-hover: #262626;
-      --border-color: #333333;
-      --text-main: #ededed;
-      --text-muted: #a1a1aa;
-      --accent-color: #22c55e;
-      --accent-hover: #16a34a;
-      --danger-color: #ef4444;
-      --warning-color: #f59e0b;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      padding: 20px;
-      gap: 15px;
-      overflow: hidden;
-      /* Force layout to fit viewport and prevent outer scrolling */
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 15px;
-      flex-shrink: 0;
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    .stats-bar {
-      display: flex;
-      gap: 20px;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .stats-bar span {
-      color: var(--text-main);
-      font-weight: 600;
-    }
-
-    /* Warning Banner when over storage limit */
-    #storage-warning {
-      display: none;
-      background-color: rgba(245, 158, 11, 0.1);
-      border: 1px solid var(--warning-color);
-      color: var(--warning-color);
-      padding: 10px 15px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      flex-shrink: 0;
-    }
-
-    .container {
-      display: grid;
-      grid-template-columns: 350px 1fr;
-      gap: 20px;
-      flex: 1;
-      min-height: 0;
-      /* Allow grid items to shrink */
-    }
-
-    .sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      min-height: 0;
-      /* Crucial for scrolling inside flex container */
-    }
-
-    #drop-zone {
-      border: 2px dashed var(--border-color);
-      background-color: var(--card-bg);
-      border-radius: 8px;
-      padding: 25px 15px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    #drop-zone.hover {
-      border-color: var(--text-muted);
-      background-color: var(--card-hover);
-    }
-
-    #drop-zone p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    #drop-zone strong {
-      color: var(--text-main);
-    }
-
-    .select-link {
-      color: var(--accent-color);
-      text-decoration: underline;
-      cursor: pointer;
-    }
-
-    .select-link:hover {
-      color: var(--accent-hover);
-    }
-
-    .file-list-container {
-      flex: 1;
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 10px;
-      overflow-y: auto;
-      /* Enable vertical scrolling */
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-height: 0;
-      /* Crucial for internal scrolling */
-    }
-
-    /* Group styling for subfolders */
-    .folder-group {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .folder-header {
-      background-color: #242424;
-      border-bottom: 1px solid var(--border-color);
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--accent-color);
-    }
-
-    .folder-remove-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 1.1rem;
-      line-height: 1;
-      transition: color 0.15s;
-    }
-
-    .folder-remove-btn:hover {
-      color: var(--danger-color);
-    }
-
-    .folder-files-container {
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      background-color: #161616;
-    }
-
-    /* Individual file card inside a folder */
-    .file-card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 6px 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .file-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      overflow: hidden;
-      width: 85%;
-    }
-
-    .file-name {
-      font-weight: 500;
-      font-size: 0.8rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--text-main);
-    }
-
-    .file-stats {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-    }
-
-    .remove-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 1rem;
-      padding: 0 5px;
-      transition: color 0.15s;
-    }
-
-    .remove-btn:hover {
-      color: var(--danger-color);
-    }
-
-    .main-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 0;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      flex-shrink: 0;
-    }
-
-    button.primary-btn,
-    button.secondary-btn {
-      padding: 10px 18px;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    button.primary-btn {
-      background-color: var(--accent-color);
-      color: #000;
-    }
-
-    button.primary-btn:hover {
-      background-color: var(--accent-hover);
-    }
-
-    button.secondary-btn {
-      background-color: var(--card-bg);
-      border-color: var(--border-color);
-      color: var(--text-main);
-    }
-
-    button.secondary-btn:hover {
-      background-color: var(--card-hover);
-    }
-
-    textarea {
-      flex: 1;
-      width: 100%;
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      color: var(--text-main);
-      padding: 15px;
-      font-family: "Fira Code", Consolas, Monaco, "Courier New", monospace;
-      font-size: 0.85rem;
-      line-height: 1.5;
-      resize: none;
-      outline: none;
-    }
-  </style>
+  <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
 
   <header>
-    <h1>Code Combiner</h1>
+    <div class="brand-title">
+      <h1><i class="katana-icon">⚔️</i> Code Combiner</h1>
+    </div>
     <div class="stats-bar">
       <div>Files: <span id="total-files">0</span></div>
       <div>Lines: <span id="total-lines">0</span></div>
       <div>Size: <span id="total-size">0 KB</span></div>
+      <div>Est. Tokens: <span id="total-tokens" class="token-badge">~0</span></div>
     </div>
   </header>
-
-  <div id="storage-warning">
-    ⚠️ <strong>Storage Limit Exceeded (&gt; 5MB):</strong> Your combined code exceeds the browser's persistent storage
-    limit. You can still combine and copy everything now, but extra files will <strong>not auto-save on page
-      reload</strong>.
-  </div>
 
   <div class="container">
     <div class="sidebar">
       <div id="drop-zone">
         <strong>Drag & Drop files or folders here</strong>
-        <p>or select <span class="select-link" id="select-files-trigger">Files</span> or a <span class="select-link"
-            id="select-folder-trigger">Folder</span></p>
+        <p>or select <span class="select-link" id="select-files-trigger">Files</span>, a <span class="select-link"
+            id="select-folder-trigger">Folder</span>, or <span class="select-link" id="select-log-trigger">Paste a Log</span></p>
         <input type="file" id="file-input" multiple style="display: none;">
         <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;">
       </div>
 
-      <div class="file-list-container" id="file-list">
-        <!-- File groups and cards will render here -->
+      <div class="sidebar-actions-row">
+        <button class="action-sub-btn" id="open-paste-modal-btn">
+          📋 Paste Log
+        </button>
+        <button class="action-sub-btn" id="open-ignore-modal-btn">
+          ⚙️ Ignores
+        </button>
+        <button class="action-sub-btn" id="open-wallpaper-modal-btn">
+          🖼️ Wallpaper
+        </button>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" id="search-filter" placeholder="Filter files (e.g. auth, .tsx)...">
+        <button class="toggle-all-btn" id="collapse-all-btn" title="Collapse or Expand all folders">Toggle Folders</button>
+        <button class="toggle-all-btn" id="toggle-all-btn" title="Toggle selection of all files">Toggle All</button>
+      </div>
+
+      <!-- VS Code Style Tree Container -->
+      <div class="file-list-container vscode-tree" id="file-tree">
+        <!-- Injected dynamically by app.js -->
       </div>
     </div>
 
     <div class="main-panel">
-      <div class="actions">
-        <button class="secondary-btn" id="clear-btn">Clear All</button>
-        <button class="primary-btn" id="copy-btn">Copy All for AI</button>
+      <!-- Pre-prompt quick chips -->
+      <div class="preprompts-bar">
+        <span class="preprompts-label">⚡ Pre-Prompts:</span>
+        <div id="preprompts-list" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+        <button class="manage-preprompt-btn" id="manage-preprompts-btn">+ Custom Presets</button>
       </div>
-      <textarea id="output-preview" readonly placeholder="Your combined code output will preview here..."></textarea>
+
+      <div class="actions">
+        <!-- Optional Project Tree Toggle -->
+        <label class="tree-toggle-label" title="Include ASCII Project Structure tree at the top of prompt">
+          <input type="checkbox" id="include-tree-toggle" checked>
+          <span>Include Tree</span>
+        </label>
+
+        <button class="secondary-btn" id="clear-btn">Clear All</button>
+        <button class="secondary-btn" id="download-txt-btn">⬇️ .txt</button>
+        <button class="secondary-btn" id="download-md-btn">⬇️ .md</button>
+        <button class="primary-btn" id="copy-btn">📋 Copy All for AI</button>
+      </div>
+
+      <!-- Main Code Passing Viewport with Visible Anime Fight Background -->
+      <div class="preview-container">
+        <div class="preview-artwork-bg" id="preview-artwork"></div>
+        <textarea id="output-preview" readonly placeholder="Combined code, logs, and optional ASCII tree will preview here..."></textarea>
+      </div>
     </div>
   </div>
 
-  <script>
-    const MAX_STORAGE_BYTES = 5 * 1024 * 1024; // 5MB limit check
-    const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB individual file limit
-    const loadedFiles = new Map();
+  <!-- MODAL: Paste Error Log -->
+  <div class="modal-backdrop" id="paste-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Paste Error Log or Text Snippet</h3>
+        <button class="modal-close-btn" id="paste-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="log-name-input">Title / Filename</label>
+          <input type="text" id="log-name-input" placeholder="e.g. error.log, crash.txt, terminal-trace">
+        </div>
+        <div class="form-group">
+          <label for="log-content-input">Log / Stack Trace</label>
+          <textarea id="log-content-input" placeholder="Paste error output or stack trace here... (Ctrl+Enter to save)"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary-btn" id="paste-modal-cancel">Cancel</button>
+        <button class="primary-btn" id="paste-modal-submit">Add Log</button>
+      </div>
+    </div>
+  </div>
 
-    // Standard list of directories to completely ignore when importing folders
-    const IGNORED_FOLDERS = new Set([
-      '.git',
-      '.github',
-      'node_modules',
-      'dist',
-      'build',
-      '.next',
-      '.nuxt',
-      'out',
-      '.cache',
-      '.vscode',
-      '.idea',
-      '__pycache__'
-    ]);
+  <!-- MODAL: Custom Ignore Patterns -->
+  <div class="modal-backdrop" id="ignore-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Custom File Ignore Patterns</h3>
+        <button class="modal-close-btn" id="ignore-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+          Files matching these rules will be skipped during import. One per line.
+        </p>
+        <div class="form-group">
+          <textarea id="ignore-patterns-input" placeholder="*.test.ts&#10;*.spec.js&#10;docs/&#10;*.svg"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary-btn" id="ignore-modal-cancel">Cancel</button>
+        <button class="primary-btn" id="ignore-modal-save">Save Patterns</button>
+      </div>
+    </div>
+  </div>
 
-    // Standard list of specific files to ignore
-    const IGNORED_FILES = new Set([
-      '.DS_Store',
-      'package-lock.json',
-      'yarn.lock',
-      'pnpm-lock.yaml'
-    ]);
+  <!-- MODAL: Wallpaper Customizer -->
+  <div class="modal-backdrop" id="wallpaper-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Code Area Anime / Samurai Wallpaper</h3>
+        <button class="modal-close-btn" id="wallpaper-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="wallpaper-url-input">Image URL</label>
+          <input type="text" id="wallpaper-url-input" placeholder="Paste image link...">
+        </div>
+        <div class="form-group">
+          <label for="wallpaper-opacity-input">Artwork Opacity: <span id="opacity-val">45%</span></label>
+          <input type="range" id="wallpaper-opacity-input" min="10" max="90" value="45">
+        </div>
+        <button class="secondary-btn" id="reset-wallpaper-btn" style="align-self: flex-start; margin-top: 4px;">Reset to Default Anime Duel</button>
+      </div>
+      <div class="modal-footer">
+        <button class="primary-btn" id="wallpaper-modal-save">Apply Wallpaper</button>
+      </div>
+    </div>
+  </div>
 
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const folderInput = document.getElementById('folder-input');
-    const selectFilesTrigger = document.getElementById('select-files-trigger');
-    const selectFolderTrigger = document.getElementById('select-folder-trigger');
+  <!-- MODAL: Manage Saved Pre-Prompts -->
+  <div class="modal-backdrop" id="preprompt-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Manage Saved Pre-Prompts</h3>
+        <button class="modal-close-btn" id="preprompt-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Add New Pre-Prompt</label>
+          <input type="text" id="new-prompt-title" placeholder="Short Label (e.g. 'Talk Before Coding')">
+          <textarea id="new-prompt-content" style="min-height: 70px; margin-top: 6px;"
+            placeholder="Instruction to prepend before code..."></textarea>
+          <button class="secondary-btn" id="add-prompt-btn" style="align-self: flex-end; margin-top: 6px;">Add Preset</button>
+        </div>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 6px 0;">
+        <label style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Saved Presets</label>
+        <div id="preprompt-items-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="primary-btn" id="preprompt-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
 
-    const fileListEl = document.getElementById('file-list');
-    const outputPreview = document.getElementById('output-preview');
-
-    const totalFilesEl = document.getElementById('total-files');
-    const totalLinesEl = document.getElementById('total-lines');
-    const totalSizeEl = document.getElementById('total-size');
-    const storageWarning = document.getElementById('storage-warning');
-
-    const copyBtn = document.getElementById('copy-btn');
-    const clearBtn = document.getElementById('clear-btn');
-
-    window.addEventListener('DOMContentLoaded', loadSavedFiles);
-
-    // Prevent default window drop behavior (prevents browser from opening folders in tab)
-    window.addEventListener('dragover', (e) => { e.preventDefault(); }, false);
-    window.addEventListener('drop', (e) => { e.preventDefault(); }, false);
-
-    // Setup input trigger links
-    selectFilesTrigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      fileInput.click();
-    });
-
-    selectFolderTrigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      folderInput.click();
-    });
-
-    dropZone.addEventListener('click', (e) => {
-      if (e.target !== selectFilesTrigger && e.target !== selectFolderTrigger) {
-        fileInput.click();
-      }
-    });
-
-    fileInput.addEventListener('change', (e) => handleLegacyFiles(e.target.files));
-    folderInput.addEventListener('change', (e) => handleLegacyFiles(e.target.files));
-
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('hover');
-
-      const items = e.dataTransfer.items;
-      if (items) {
-        const entries = [];
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].kind === 'file') {
-            const entry = items[i].webkitGetAsEntry();
-            if (entry) {
-              entries.push(entry);
-            }
-          }
-        }
-        processEntries(entries);
-      } else {
-        handleLegacyFiles(e.dataTransfer.files);
-      }
-    });
-
-    // Heuristic to determine if file is a readable text/code file
-    function isTextFile(file, content) {
-      if (file.size > MAX_FILE_SIZE_BYTES) return false;
-
-      const binaryExtensions = /\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|rar|7z|exe|dll|so|dylib|bin|mp3|mp4|wav|avi|mov|woff2?|ttf|otf|pyc|class|db|sqlite|node)$/i;
-      if (binaryExtensions.test(file.name)) {
-        return false;
-      }
-
-      if (content.includes('\u0000')) {
-        return false;
-      }
-
-      return true;
-    }
-
-    // Handles standard manual click selection inputs
-    function handleLegacyFiles(files) {
-      const filesToProcess = Array.from(files).map(file => ({
-        file,
-        relativePath: file.webkitRelativePath || file.name
-      }));
-      processParsedFiles(filesToProcess);
-    }
-
-    // Handles drag and drop with directory traversal support
-    async function processEntries(entries) {
-      const filesToProcess = [];
-
-      async function readAllDirectoryEntries(directoryEntry) {
-        const dirReader = directoryEntry.createReader();
-        const allEntries = [];
-
-        const readBatch = () => {
-          return new Promise((resolve, reject) => {
-            dirReader.readEntries(resolve, reject);
-          });
-        };
-
-        try {
-          let results = await readBatch();
-          while (results.length > 0) {
-            allEntries.push(...results);
-            results = await readBatch();
-          }
-        } catch (err) {
-          console.error("Error reading directory items:", err);
-        }
-        return allEntries;
-      }
-
-      async function traverse(entry, path = "") {
-        // Skip ignored directories completely
-        if (entry.isDirectory && IGNORED_FOLDERS.has(entry.name)) {
-          return;
-        }
-
-        // Skip ignored files completely
-        if (entry.isFile && IGNORED_FILES.has(entry.name)) {
-          return;
-        }
-
-        if (entry.isFile) {
-          const file = await new Promise((resolve) => entry.file(resolve));
-          const relativePath = path ? `${path}/${entry.name}` : entry.name;
-          filesToProcess.push({ file, relativePath });
-        } else if (entry.isDirectory) {
-          const subEntries = await readAllDirectoryEntries(entry);
-          const nextPath = path ? `${path}/${entry.name}` : entry.name;
-          for (const subEntry of subEntries) {
-            await traverse(subEntry, nextPath);
-          }
-        }
-      }
-
-      for (const entry of entries) {
-        await traverse(entry);
-      }
-
-      processParsedFiles(filesToProcess);
-    }
-
-    // Processes parsed lists of files, runs exclusions, and imports valid ones
-    function processParsedFiles(fileList) {
-      let skippedCount = 0;
-      let loadedCount = 0;
-
-      // Filter out files that match any ignored folder structure or ignored files
-      const filteredList = fileList.filter(({ file, relativePath }) => {
-        const parts = relativePath.split('/');
-        const hasIgnoredFolder = parts.some(part => IGNORED_FOLDERS.has(part));
-        const isIgnoredFile = IGNORED_FILES.has(file.name);
-        return !hasIgnoredFolder && !isIgnoredFile;
-      });
-
-      const promises = filteredList.map(({ file, relativePath }) => {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const content = event.target.result;
-
-            if (!isTextFile(file, content)) {
-              skippedCount++;
-              resolve();
-              return;
-            }
-
-            const lines = content.split('\n').length;
-            const chars = content.length;
-
-            loadedFiles.set(relativePath, { content, lines, chars });
-            loadedCount++;
-            resolve();
-          };
-          reader.onerror = () => {
-            skippedCount++;
-            resolve();
-          };
-          reader.readAsText(file);
-        });
-      });
-
-      Promise.all(promises).then(() => {
-        saveToStorage();
-        updateUI();
-        fileInput.value = '';
-        folderInput.value = '';
-        if (skippedCount > 0) {
-          console.log(`Skipped ${skippedCount} non-text or binary files.`);
-        }
-      });
-    }
-
-    function removeFile(relativePath) {
-      loadedFiles.delete(relativePath);
-      saveToStorage();
-      updateUI();
-    }
-
-    // Bulk remove entire subfolder group
-    function removeFolder(folderPath) {
-      loadedFiles.forEach((_, relativePath) => {
-        if (relativePath.startsWith(folderPath + '/') || relativePath === folderPath) {
-          loadedFiles.delete(relativePath);
-        } else if (folderPath === '(Root)' && !relativePath.includes('/')) {
-          loadedFiles.delete(relativePath);
-        }
-      });
-      saveToStorage();
-      updateUI();
-    }
-
-    function saveToStorage() {
-      try {
-        const dataObj = Object.fromEntries(loadedFiles);
-        const serialized = JSON.stringify(dataObj);
-
-        if (new Blob([serialized]).size > MAX_STORAGE_BYTES) {
-          storageWarning.style.display = 'block';
-          return;
-        }
-
-        storageWarning.style.display = 'none';
-        localStorage.setItem('code_combiner_data', serialized);
-      } catch (e) {
-        storageWarning.style.display = 'block';
-      }
-    }
-
-    function loadSavedFiles() {
-      const saved = localStorage.getItem('code_combiner_data');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          Object.entries(parsed).forEach(([path, data]) => {
-            loadedFiles.set(path, data);
-          });
-          updateUI();
-        } catch (e) {
-          console.error('Failed to parse saved files', e);
-        }
-      }
-    }
-
-    function updateUI() {
-      fileListEl.innerHTML = '';
-      let combinedText = '';
-      let totalLines = 0;
-      let totalChars = 0;
-
-      // Sort files alphabetically by path
-      const sortedFiles = new Map([...loadedFiles.entries()].sort());
-
-      // Group files by parent directory structure
-      const groups = {};
-      sortedFiles.forEach((data, relativePath) => {
-        totalLines += data.lines;
-        totalChars += data.chars;
-
-        // Generate combined output structure
-        combinedText += `// ====================================\n`;
-        combinedText += `// FILE: ${relativePath}\n`;
-        combinedText += `// LINES: ${data.lines} | CHARACTERS: ${data.chars}\n`;
-        combinedText += `// ====================================\n\n`;
-        combinedText += data.content + `\n\n`;
-
-        const pathParts = relativePath.split('/');
-        const fileName = pathParts.pop();
-        const directory = pathParts.join('/') || '(Root)';
-
-        if (!groups[directory]) {
-          groups[directory] = [];
-        }
-        groups[directory].push({ fileName, relativePath, data });
-      });
-
-      // Render grouped file UI cards
-      Object.entries(groups).forEach(([directory, files]) => {
-        const folderGroup = document.createElement('div');
-        folderGroup.className = 'folder-group';
-
-        // Directory Header with a single remove-all button
-        const header = document.createElement('div');
-        header.className = 'folder-header';
-        header.innerHTML = `
-          <span>📁 ${directory}</span>
-          <button class="folder-remove-btn" title="Remove all files in this folder">&times;</button>
-        `;
-        header.querySelector('.folder-remove-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          removeFolder(directory);
-        });
-        folderGroup.appendChild(header);
-
-        // Files container
-        const filesContainer = document.createElement('div');
-        filesContainer.className = 'folder-files-container';
-
-        files.forEach(({ fileName, relativePath, data }) => {
-          const card = document.createElement('div');
-          card.className = 'file-card';
-          card.innerHTML = `
-            <div class="file-info">
-              <div class="file-name" title="${relativePath}">${fileName}</div>
-              <div class="file-stats">${data.lines.toLocaleString()} lines • ${data.chars.toLocaleString()} chars</div>
-            </div>
-            <button class="remove-btn" title="Remove file">&times;</button>
-          `;
-          card.querySelector('.remove-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeFile(relativePath);
-          });
-          filesContainer.appendChild(card);
-        });
-
-        folderGroup.appendChild(filesContainer);
-        fileListEl.appendChild(folderGroup);
-      });
-
-      const sizeKB = (totalChars / 1024).toFixed(1);
-      const sizeMB = (totalChars / (1024 * 1024)).toFixed(2);
-      const displaySize = totalChars > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
-
-      totalFilesEl.textContent = loadedFiles.size;
-      totalLinesEl.textContent = totalLines.toLocaleString();
-      totalSizeEl.textContent = displaySize;
-
-      if (totalChars <= MAX_STORAGE_BYTES) {
-        storageWarning.style.display = 'none';
-      } else {
-        storageWarning.style.display = 'block';
-      }
-
-      outputPreview.value = combinedText;
-    }
-
-    copyBtn.addEventListener('click', () => {
-      if (loadedFiles.size === 0) return;
-      navigator.clipboard.writeText(outputPreview.value);
-      const originalText = copyBtn.textContent;
-      copyBtn.textContent = 'Copied to Clipboard!';
-      setTimeout(() => {
-        copyBtn.textContent = originalText;
-      }, 1500);
-    });
-
-    clearBtn.addEventListener('click', () => {
-      loadedFiles.clear();
-      localStorage.removeItem('code_combiner_data');
-      updateUI();
-    });
-  </script>
+  <script src="./app.js"></script>
 </body>
 
 </html>
